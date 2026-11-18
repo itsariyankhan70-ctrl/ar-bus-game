@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NEXORA FIRE - Realistic Battle Royale</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0b131f;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #lobby {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #050b14, #122338, #1b3a57);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; color: white; text-align: center;
+        }
+        .lobby-title {
+            font-size: 56px; font-weight: 900; color: #ff5722;
+            letter-spacing: 5px; text-shadow: 0 0 30px rgba(255,87,34,0.8); margin-bottom: 5px;
+        }
+        .lobby-sub { font-size: 16px; letter-spacing: 4px; color: #90a4ae; margin-bottom: 40px; }
+        .start-btn {
+            background: linear-gradient(45deg, #ff5722, #ff9800); border: none; color: white;
+            padding: 16px 50px; font-size: 22px; font-weight: bold; border-radius: 35px;
+            cursor: pointer; box-shadow: 0 8px 25px rgba(255,87,34,0.6); transition: 0.2s;
+        }
+        .start-btn:hover { transform: scale(1.06); }
+
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; box-sizing: border-box; padding: 15px;
+        }
+        .stat-box {
+            background: rgba(10, 15, 25, 0.75); border-left: 4px solid #ff5722;
+            padding: 10px 18px; border-radius: 6px; color: white; font-size: 14px; font-weight: bold;
+            backdrop-filter: blur(5px);
+        }
+        #weapon-slot {
+            position: absolute; top: 15px; right: 20px;
+            background: rgba(10, 15, 25, 0.75); padding: 10px 15px; border-radius: 6px;
+            color: white; text-align: right; border-right: 4px solid #ff9800; backdrop-filter: blur(5px);
+        }
+
+        #controls {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none;
+        }
+        .joy-base {
+            position: absolute; bottom: 35px; left: 35px; width: 140px; height: 140px;
+            background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%; pointer-events: auto; touch-action: none; backdrop-filter: blur(3px);
+        }
+        .joy-stick {
+            position: absolute; top: 45px; left: 45px; width: 50px; height: 50px;
+            background: rgba(255, 255, 255, 0.5); border-radius: 50%; pointer-events: none;
+        }
+        .action-btn {
+            position: absolute; background: rgba(10, 15, 25, 0.6); border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white; font-weight: bold; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; pointer-events: auto; cursor: pointer; backdrop-filter: blur(4px);
+        }
+        #btn-fire { width: 90px; height: 90px; bottom: 40px; right: 30px; background: rgba(255, 87, 34, 0.65); border-color: #ff5722; font-size: 16px; }
+        #btn-jump { width: 60px; height: 60px; bottom: 155px; right: 50px; font-size: 12px; }
+        #btn-crouch { width: 60px; height: 60px; bottom: 45px; right: 150px; font-size: 11px; }
+        #btn-reload { width: 55px; height: 55px; bottom: 125px; right: 140px; font-size: 11px; }
+        #btn-aim { width: 60px; height: 60px; bottom: 195px; right: 140px; font-size: 11px; }
+
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 12px; height: 12px;
+            transform: translate(-50%, -50%); pointer-events: none; display: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: ''; position: absolute; background: rgba(255,255,255,0.85);
+        }
+        #crosshair::before { top: 5px; left: -7px; width: 26px; height: 2px; }
+        #crosshair::after { top: -7px; left: 5px; width: 2px; height: 26px; }
+
+        #game-over {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 8, 15, 0.9); display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 50; color: white; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="lobby">
+        <div class="lobby-title">NEXORA FIRE</div>
+        <div class="lobby-sub">REALISTIC BATTLE ROYALE SURVIVAL</div>
+        <button class="start-btn" onclick="startGame()">START MATCH</button>
+    </div>
+
+    <div id="hud">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+            <div class="stat-box">
+                <div>HEALTH: <span id="hp-txt">100</span></div>
+                <div>ENEMIES ALIVE: <span id="bots-txt">6</span></div>
+            </div>
+        </div>
+        <div id="weapon-slot">
+            <div style="font-size: 11px; color: #ff9800; letter-spacing: 1px;">TACTICAL RIFLE</div>
+            <div style="font-size: 18px; font-weight: bold;"><span id="ammo-txt">30</span> / 120</div>
+        </div>
+    </div>
+
+    <div id="crosshair"></div>
+
+    <div id="controls">
+        <div class="joy-base" id="joyBase"><div class="joy-stick" id="joyStick"></div></div>
+        <div id="btn-fire" class="action-btn">FIRE</div>
+        <div id="btn-jump" class="action-btn">JUMP</div>
+        <div id="btn-crouch" class="action-btn">DUCK</div>
+        <div id="btn-reload" class="action-btn">LOAD</div>
+        <div id="btn-aim" class="action-btn">AIM</div>
+    </div>
+
+    <div id="game-over">
+        <h1 id="end-title" style="font-size: 50px; color: #ff5722; margin-bottom: 10px;">VICTORY!</h1>
+        <p id="end-sub" style="font-size: 18px; color: #b0bec5; margin-bottom: 25px;">You dominated the realistic combat zone.</p>
+        <button class="start-btn" onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let player, bots = [], buildings = [];
+        let moveX = 0, moveZ = 0;
+        let hp = 100, ammo = 30, activeBots = 6;
+        let isStarted = false, isAiming = false, isCrouching = false;
+        let camAngleX = 0, camAngleY = 0.35;
+        let touchId = null, joyStartX = 0, joyStartY = 0;
+
+        function startGame() {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('controls').style.display = 'block';
+            document.getElementById('crosshair').style.display = 'block';
+            isStarted = true;
+            initThree();
+        }
+
+        function initThree() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x7096ab);
+            scene.fog = new THREE.FogExp2(0x7096ab, 0.008);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // Realistic Lighting & Atmosphere
+            const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+            scene.add(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xfff3d1, 1.2);
+            sun.position.set(150, 200, 100);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
+
+            // Ground & Riverside Terrain
+            const groundGeo = new THREE.PlaneGeometry(800, 800);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x3d5a38, roughness: 0.9 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Kirtankhola River Feature
+            const riverGeo = new THREE.PlaneGeometry(90, 800);
+            const riverMat = new THREE.MeshStandardMaterial({ color: 0x1b4f72, roughness: 0.2, metalness: 0.1 });
+            const river = new THREE.Mesh(riverGeo, riverMat);
+            river.rotation.x = -Math.PI / 2;
+            river.position.set(220, 0.05, 0);
+            scene.add(river);
+
+            // Realistic Character Setup
+            player = new THREE.Group();
+            const suitMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.7 });
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xdc9772, roughness: 0.6 });
+            const gearMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8 });
+
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.4), suitMat);
+            torso.position.y = 0.95; torso.castShadow = true;
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), skinMat);
+            head.position.y = 1.7; head.castShadow = true;
+            const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.9), gearMat);
+            rifle.position.set(0.35, 0.9, 0.4);
+
+            player.add(torso);
+            player.add(head);
+            player.add(rifle);
+            player.position.set(0, 0, 0);
+            scene.add(player);
+
+            // Detailed Urban Buildings
+            for (let i = 0; i < 24; i++) {
+                const w = 14 + Math.random() * 12;
+                const h = 18 + Math.random() * 25;
+                const d = 14 + Math.random() * 12;
+                const bMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, roughness: 0.8 });
+                const building = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMat);
+                building.position.set((Math.random() - 0.5) * 450, h / 2, (Math.random() - 0.5) * 450);
+                building.castShadow = true; building.receiveShadow = true;
+                scene.add(building);
+                buildings.push(building);
+            }
+
+            // AI Tactical Bots
+            for (let i = 0; i < 6; i++) {
+                const bot = new THREE.Group();
+                const bTorso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x922b21 }));
+                bTorso.position.y = 0.95;
+                const bHead = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), skinMat);
+                bHead.position.y = 1.7;
+                bot.add(bTorso); bot.add(bHead);
+                bot.position.set((Math.random() - 0.5) * 320, 0, (Math.random() - 0.5) * 320);
+                bot.userData = { health: 60, speed: 0.18 + Math.random() * 0.12 };
+                scene.add(bot);
+                bots.push(bot);
+            }
+
+            setupControls();
+            animate();
+        }
+
+        function setupControls() {
+            const joyBase = document.getElementById('joyBase');
+            const joyStick = document.getElementById('joyStick');
+
+            joyBase.addEventListener('touchstart', (e) => {
+                touchId = e.changedTouches[0].identifier;
+                joyStartX = e.changedTouches[0].clientX;
+                joyStartY = e.changedTouches[0].clientY;
+            });
+
+            window.addEventListener('touchmove', (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    let t = e.changedTouches[i];
+                    if (t.identifier === touchId) {
+                        let dx = t.clientX - joyStartX;
+                        let dy = t.clientY - joyStartY;
+                        let dist = Math.sqrt(dx*dx + dy*dy);
+                        let maxDist = 50;
+                        if (dist > maxDist) { dx *= maxDist/dist; dy *= maxDist/dist; }
+                        joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+                        moveX = dx / maxDist;
+                        moveZ = dy / maxDist;
+                    }
+                }
+            });
+
+            window.addEventListener('touchend', (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === touchId) {
+                        touchId = null;
+                        joyStick.style.transform = `translate(0px, 0px)`;
+                        moveX = 0; moveZ = 0;
+                    }
+                }
+            });
+
+            let lastMouseX = 0, lastMouseY = 0, isDragging = false;
+            window.addEventListener('touchstart', (e) => {
+                if (e.touches[0].clientX > window.innerWidth / 2) {
+                    isDragging = true;
+                    lastMouseX = e.touches[0].clientX;
+                    lastMouseY = e.touches[0].clientY;
+                }
+            });
+            window.addEventListener('touchmove', (e) => {
+                if (isDragging) {
+                    let dx = e.touches[0].clientX - lastMouseX;
+                    let dy = e.touches[0].clientY - lastMouseY;
+                    camAngleX -= dx * 0.004;
+                    camAngleY = Math.max(0.1, Math.min(1.3, camAngleY - dy * 0.004));
+                    lastMouseX = e.touches[0].clientX;
+                    lastMouseY = e.touches[0].clientY;
+                }
+            });
+            window.addEventListener('touchend', () => { isDragging = false; });
+
+            document.getElementById('btn-fire').addEventListener('click', () => {
+                if (ammo > 0) {
+                    ammo--;
+                    document.getElementById('ammo-txt').innerText = ammo;
+                    bots.forEach((bot, index) => {
+                        let dist = player.position.distanceTo(bot.position);
+                        if (dist < 28) {
+                            bot.userData.health -= 30;
+                            if (bot.userData.health <= 0) {
+                                scene.remove(bot);
+                                bots.splice(index, 1);
+                                activeBots--;
+                                document.getElementById('bots-txt').innerText = activeBots;
+                                if (activeBots <= 0) triggerEnd(true);
+                            }
+                        }
+                    });
+                }
+            });
+
+            document.getElementById('btn-reload').addEventListener('click', () => {
+                ammo = 30;
+                document.getElementById('ammo-txt').innerText = ammo;
+            });
+
+            document.getElementById('btn-jump').addEventListener('click', () => {
+                player.position.y += 1.6;
+                setTimeout(() => { player.position.y -= 1.6; }, 320);
+            });
+
+            document.getElementById('btn-aim').addEventListener('click', () => {
+                isAiming = !isAiming;
+                camera.fov = isAiming ? 32 : 60;
+                camera.updateProjectionMatrix();
+            });
+
+            document.getElementById('btn-crouch').addEventListener('click', () => {
+                isCrouching = !isCrouching;
+                player.scale.y = isCrouching ? 0.65 : 1.0;
+            });
+        }
+
+        function animate() {
+            if (!isStarted) return;
+            requestAnimationFrame(animate);
+
+            let speed = isCrouching ? 0.22 : 0.42;
+            let forward = new THREE.Vector3(Math.sin(camAngleX), 0, Math.cos(camAngleX));
+            let side = new THREE.Vector3(Math.cos(camAngleX), 0, -Math.sin(camAngleX));
+            
+            player.position.addScaledVector(forward, -moveZ * speed);
+            player.position.addScaledVector(side, moveX * speed);
+            if (moveX !== 0 || moveZ !== 0) {
+                player.rotation.y = camAngleX + Math.atan2(moveX, -moveZ);
+            }
+
+            bots.forEach(bot => {
+                bot.lookAt(player.position.x, bot.position.y, player.position.z);
+                bot.translateZ(bot.userData.speed);
+                let d = bot.position.distanceTo(player.position);
+                if (d < 3.2) {
+                    hp -= 0.6;
+                    document.getElementById('hp-txt').innerText = Math.max(0, Math.floor(hp));
+                    if (hp <= 0) triggerEnd(false);
+                }
+            });
+
+            let camDist = isAiming ? 3.2 : 6.8;
+            let camHeight = isAiming ? 1.8 : 3.2;
+            camera.position.x = player.position.x + Math.sin(camAngleX) * camDist;
+            camera.position.z = player.position.z + Math.cos(camAngleX) * camDist;
+            camera.position.y = player.position.y + camHeight + (camAngleY * 2);
+            camera.lookAt(player.position.x, player.position.y + 1.1, player.position.z);
+
+            renderer.render(scene, camera);
+        }
+
+        function triggerEnd(isWin) {
+            isStarted = false;
+            document.getElementById('game-over').style.display = 'flex';
+            document.getElementById('end-title').innerText = isWin ? "VICTORY!" : "DEFEAT";
+            document.getElementById('end-sub').innerText = isWin ? "You survived the tactical zone!" : "You were eliminated in combat.";
+        }
+
+        window.addEventListener('resize', () => {
+            if (!isStarted) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
